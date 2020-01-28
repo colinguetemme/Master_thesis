@@ -19,43 +19,42 @@ library(PhaseTypeGenetics)
 #   t a vector with the time spent in each state
 #   Vecstates a vector with the transient state for this simulation
 
-simul = function(Q,a){
+simul = function(n, theta = 10){
   # Initialisation
+  states = BlockCountProcess(n)$StateSpace_Mat
+  Nb_states =  nrow(states)
+  rate = BlockCountProcess(n)$Rate_Mat
   
   t = NULL
-  size = ncol(Q)
-  states = BlockCountProcess(size)$StateSpace_Mat
+
   i = 1
   count = 1 # because i will not goes just from 1 to size 
-  Vecstates = matrix(0,nrow=size,ncol=size)
-  print(Vecstates)
-  print(states)
-  Vecstates[1,] = states$StateSpace_Mat[1,]
+  Vecstates = matrix(0, nrow=n-1, ncol=n-1)
+  Vecstates[1,] = states[1,]
+  Vecmut = rep(0, n-1)
+  while (count < n){
+    lambda = rate[i, i]
+    t[count] = qexp(p = runif(1), rate = -lambda)
+    mutrate = t[count]*Vecstates[count, ]*theta/2
+    print(mutrate)
+    Vecmut = Vecmut + rpois(n = n-1, lambda = mutrate)
   
-  # 
-  while (i<ncol(Q)){
-    lambda = -Q[i,i]
-    t[count] = log(1-runif(1))/(-lambda) 
-
-    VecNext = Q[i,]/(sum(Q[i,])-Q[i,i])
-    VecNext[i] = 0
+    if (count < n-1){
+      VecNext = rate[i, ]/(sum(rate[i, ])-rate[i, i])
+      VecNext[i] = 0
+      inext = sample(x = 1:length(VecNext), size = 1, prob = VecNext)
+      Vecstates[count+1, ] = states[inext, ] 
+      i = inext
+    }
     
-    inext = sample(x = 1:size, size = 1, prob = VecNext)
-    Vecstates[count+1,] = states$StateSpace_Mat[inext,]
-    i = inext
     count = count + 1
   }
-  return(list(t,Vecstates))
+  return(list(t, Vecstates, Vecmut))
 }
 
-# exemple for n=4 of 'simul'
+# exemple for n=6 of 'simul'
 
-Q = matrix(c(-6,6,0,0,0,
-             0,-3,2,1,0,
-             0,0,-1,0,1,
-             0,0,0,-1,1), nrow = 4, byrow = T)
-a = c(1,0,0,0)
-simul(Q,a)
+simul(6, 1000)
 
 
 
@@ -72,19 +71,26 @@ simul(Q,a)
 #   A vector 'reward' with the reward for each state
 
 MakeReward = function(block,vecwhich = 1:ncol(block)){
-  reward = block[,vecwhich]
-  reward = apply(block,1,sum)
+  reward = matrix(block[,vecwhich], nrow = nrow(block))
+  reward = apply(reward,1,sum)
   return(reward)
 }
 
 # Exemple of 'MakeReward'
+
+Q = matrix(c(-6,6,0,0,0,
+             0,-3,2,1,0,
+             0,0,-1,0,1,
+             0,0,0,-1,1), nrow = 4, byrow = T)
+
+a = c(1,0,0,0)
 
 block = BlockCountProcess(nrow(Q))
 block = block$StateSpace_Mat
 vecwhich = c(1,2)
 
 MakeReward(block)
-MakeReward(block, vecwhich)  # We do not consider branch with 3 lineages
+MakeReward(block, 1)  # We do not consider branch with 3 lineages
 
 
 
@@ -100,7 +106,8 @@ MakeReward(block, vecwhich)  # We do not consider branch with 3 lineages
 #   The estimates of Theta
 
 theta_est = function(vecxton, xton = 1:length(vecxton)){
-  theta = sum(xton)/(sum(1/vecxton[which(vecxton!=0)]))
+  print(vecxton*xton)
+  theta = mean(vecxton*xton)
   return(theta)
 }
 
