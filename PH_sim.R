@@ -1,7 +1,7 @@
 # Fri Jan 24 14:30:11 2020 ------------------------------
 
 
-## Simulation of CMC for population genetics ##
+## Simulation of CTMC for population genetics ##
 # Need to be implemented in this package 
 # also using the block counting process
 library(PhaseTypeGenetics)
@@ -40,7 +40,7 @@ simul = function(n, theta = 10){
     
     # Each coalescent time follow a exp dsitribution
     # with a parameter lambda given by the rate matrix
-    t[count] = qexp(p = runif(1), rate = -lambda)
+    t[count] = rexp(n=1, rate = -lambda)
     
     # give a vector of mutation rate (corresponding to the SFS)
     mutrate = t[count]*Vecstates[count, ]*theta/2
@@ -50,7 +50,7 @@ simul = function(n, theta = 10){
     # and is not represented in the state matrix
     if (count < n-1){
       # Vector of probability to go to each other states
-      VecNext = rate[i, ]/(sum(rate[i, ])-rate[i, i])
+      VecNext = rate[i, ]/(-rate[i, i])
       VecNext[i] = 0
       inext = sample(x = 1:Nb_states, size = 1, prob = VecNext)
       Vecstates[count+1, ] = states[inext, ] 
@@ -143,3 +143,58 @@ PH_mutation = function(n, lambda = 1){
   return(Vecmut)
 }
 
+# simulDyn --------------------------------------------
+# Aim:
+#   This function leads to a simulation of a gene tree
+#   using the PH dsitribution
+
+# Inputs:
+#   'n' the number of individuals 
+#   'theta' the population mutation rate
+
+# Outputs:
+#   't' a vector with the time spent in each state
+#   'Vecstates' a vector with the transient state for this simulation
+
+simulDyn = function(n, theta = 10){
+  
+  # Initialisation
+  t = NULL
+  k = n
+  count = 1 # because i will not goes just from 1 to size 
+  Vecstates = matrix(0, nrow=n-1, ncol=n-1)
+  Vecstates[1, ] = c(n, rep(0,n-2))
+  Vecmut = rep(0, n-1) # the number of mutation (in SFS)
+  
+  # This loop will continue until reaching the MRCA
+  # because it should be as much coalescent event 
+  # as the number of lineages - 1
+  while (k > 2){
+    lambda = k*(k-1)/2
+    
+    # Each coalescent time follow a exp dsitribution
+    # with a parameter lambda given by the rate matrix
+    t[count] = rexp(n=1, rate = lambda)
+    # give a vector of mutation rate (corresponding to the SFS)
+    mutrate = t[count]*Vecstates[count, ]*theta/2
+    Vecmut = Vecmut + rpois(n = n-1, lambda = mutrate)
+
+    # Need this condition because the last coalescent leads to MRCA
+    # and is not represented in the state matrix
+    # Vector of probability to go to each other states
+    Vecnext = Vecstates[count,]
+    inext=NULL
+    inext[1] = sample(x = 1:(n-1), size = 1, prob = Vecnext)
+    Vecnext[inext[1]]=Vecnext[inext[1]]-1
+    inext[2] = sample(x = 1:(n-1), size = 1, prob = Vecnext)
+    Vecnext[inext[2]]=Vecnext[inext[2]]-1
+    Vecnext[sum(inext)]=Vecnext[sum(inext)]+1
+    
+    
+    count = count + 1
+    Vecstates[count, ] = Vecnext 
+    k = k - 1
+    print(k)
+  }
+  return(list(t, Vecstates, Vecmut))
+}
