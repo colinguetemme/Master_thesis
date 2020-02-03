@@ -25,7 +25,7 @@ simul = function(n, theta = 10){
   states = BlockCountProcess(n)$StateSpace_Mat
   Nb_states =  nrow(states)
   rate = BlockCountProcess(n)$Rate_Mat
-  t = NULL
+  times = NULL
   i = 1
   count = 1 # because i will not goes just from 1 to size 
   Vecstates = matrix(0, nrow=n-1, ncol=n-1)
@@ -40,7 +40,7 @@ simul = function(n, theta = 10){
     
     # Each coalescent time follow a exp dsitribution
     # with a parameter lambda given by the rate matrix
-    t[count] = rexp(n=1, rate = -lambda)
+    times[count] = rexp(n=1, rate = -lambda)
     
     # give a vector of mutation rate (corresponding to the SFS)
     mutrate = t[count]*Vecstates[count, ]*theta/2
@@ -59,7 +59,7 @@ simul = function(n, theta = 10){
     
     count = count + 1
   }
-  return(list(t, Vecstates, Vecmut))
+  return(list(times, Vecstates, Vecmut))
 }
 
 # Exemples for n=6 of 'simul'
@@ -156,45 +156,52 @@ PH_mutation = function(n, lambda = 1){
 #   't' a vector with the time spent in each state
 #   'Vecstates' a vector with the transient state for this simulation
 
-simulDyn = function(n, theta = 10){
+simulDyn = function(n, theta = 10, T_total = FALSE){
   
   # Initialisation
-  t = NULL
+  times = NULL
   k = n
   count = 1 # because i will not goes just from 1 to size 
-  Vecstates = matrix(0, nrow=n-1, ncol=n-1)
-  Vecstates[1, ] = c(n, rep(0,n-2))
+  Vecstates = matrix(0, nrow=n, ncol=n)
+  Vecstates[1, ] = c(n, rep(0,n-1))
   Vecmut = rep(0, n-1) # the number of mutation (in SFS)
   
   # This loop will continue until reaching the MRCA
   # because it should be as much coalescent event 
   # as the number of lineages - 1
-  while (k > 2){
+  while (k >= 2){
     lambda = k*(k-1)/2
     
     # Each coalescent time follow a exp dsitribution
     # with a parameter lambda given by the rate matrix
-    t[count] = rexp(n=1, rate = lambda)
+    times[count] = rexp(n=1, rate = lambda)
+    
     # give a vector of mutation rate (corresponding to the SFS)
-    mutrate = t[count]*Vecstates[count, ]*theta/2
+    mutrate = times[count]*Vecstates[count, ]*theta/2
     Vecmut = Vecmut + rpois(n = n-1, lambda = mutrate)
+    
+    
+    if(T_total == TRUE){times[count] = times[count]*k} 
+           
+    
+    
 
     # Need this condition because the last coalescent leads to MRCA
     # and is not represented in the state matrix
     # Vector of probability to go to each other states
-    Vecnext = Vecstates[count,]
-    inext=NULL
-    inext[1] = sample(x = 1:(n-1), size = 1, prob = Vecnext)
-    Vecnext[inext[1]]=Vecnext[inext[1]]-1
-    inext[2] = sample(x = 1:(n-1), size = 1, prob = Vecnext)
-    Vecnext[inext[2]]=Vecnext[inext[2]]-1
-    Vecnext[sum(inext)]=Vecnext[sum(inext)]+1
     
+    Vecnext = Vecstates[count,]
+    inext = NULL
+    inext[1] = sample(x = 1:n, size = 1, prob = Vecnext)
+    Vecnext[inext[1]]=Vecnext[inext[1]]-1
+    inext[2] = sample(x = 1:n, size = 1, prob = Vecnext)
+    Vecnext[inext[2]] = Vecnext[inext[2]]-1
+    Vecnext[sum(inext)] = Vecnext[sum(inext)]+1
     
     count = count + 1
     Vecstates[count, ] = Vecnext 
-    k = k - 1
     print(k)
+    k = k - 1
   }
-  return(list(t, Vecstates, Vecmut))
+  return(list(times, Vecstates, Vecmut))
 }
