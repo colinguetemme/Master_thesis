@@ -29,14 +29,11 @@ knitr::opts_chunk$set(echo = TRUE)
    'Vecmut'a vector of positive value for the simulated SFS.
 
 ```{r}
-ncsim = function(n, theta = 10, model = 'n', T_total = FALSE){
+
+ncsim = function(n, T_total = FALSE){
   
     if (n<=0 || length(n)!=1 || round(n)!=n){
     stop('n should be a positive integer')
-  }
-  
-  if (theta<0 || length(theta)!= 1){
-    stop('theta should be a positive numeric')
   }
   
   if (!is.logical(T_total)){
@@ -86,17 +83,24 @@ ncsim = function(n, theta = 10, model = 'n', T_total = FALSE){
   }
   # give a vector of mutation rate (corresponding to the SFS)
   
-  mutrate = matrix(times*(Matstates[-count,-n])*(theta/2), ncol=n-1)
+  
+  
+  if(T_total == T){times = T_tot}
+  return(list(times, Matstates))
+}
+```
+
+```{r}
+mutsim = function(simtree, theta = 10){
+  
+  mutrate = matrix(simtree[[1]]*(simtree[[2]][-nrow(simtree[[2]]),-ncol(simtree[[2]])])*(theta/2), ncol=ncol(simtree[[2]])-1)
   mutrate = apply(mutrate, 2, sum)
 
 
   Vecmut = rpois(n = n-1, lambda = mutrate)
-  
-  if(T_total == T){times = T_tot}
-  return(list(times, Matstates, Vecmut))
+  return (Vecmut)
 }
 ```
-
 ## Examples
 
 These are a few examples of how to use this function,
@@ -106,9 +110,10 @@ of the time. While the first one gives the $\tau_k$, meaning the times spend wit
 ```{r}
 # with T_MRCA
 
-example1 = ncsim(n = 10, theta = 100)
+example1 = ncsim(n = 10)
 print(example1)
 plot(example1[[1]])
+print(mutsim(example1))
 ``` 
 
 ```{r}
@@ -117,6 +122,7 @@ plot(example1[[1]])
 example2 = ncsim(n = 10, theta = 100, T_total = T)
 print(example2)
 plot(example2[[1]])
+print(mutsim(example2))
 ```
 
 Considering many simulations, we can observe the mean SFS of the n-coalescent model. In particular this simulation confirmms that the number of singletons, doubletons, ... follows the formula presented in ,
@@ -127,8 +133,12 @@ $$
 In that case if we take $n=10$, $\theta=100$ and the number of simulation is 10000, we obtain the following plot
 ```{r}
 n=10
-simulationSFS = replicate(10000, ncsim(n = n, theta = 10)[3])
-simulationSFS = matrix(unlist(simulationSFS), ncol = n-1, byrow = T)
+replicate = 1000
+simulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+for (i in 1:replicate){
+  simul = ncsim(n = n)
+  simulationSFS[i,] = mutsim(simul)
+}
 
 meanSFS = apply(simulationSFS,2,mean)
 q1SFS = apply(simulationSFS,2,quantile,0.05)
@@ -173,14 +183,12 @@ LambdaB = function(m, k, alpha=1.9999){
   }
 
 
-bcsim = function(n, alpha = 1.9999, theta = 10, T_total = FALSE){
+bcsim = function(n, alpha = 1.9999, T_total = FALSE){
   
-  if (n<=0 || length(n)!=1 || round(n)!=n){
+  if (n<=0 || length(n)!=1 || round
+      
+      (n)!=n){
     stop('n should be a positive integer')
-  }
-  
-  if (theta<0 || length(theta)!= 1){
-    stop('theta should be a positive numeric')
   }
   
   if (!is.logical(T_total)){
@@ -217,28 +225,174 @@ bcsim = function(n, alpha = 1.9999, theta = 10, T_total = FALSE){
     k = k - (kmerger-1)
   }
 
-  mutrate = matrix(times*(Matstates[-count,-n])*(theta/2), ncol=n-1)
-  mutrate = apply(mutrate, 2, sum)
-
-  Vecmut = rpois(n = n-1, lambda = mutrate)
-  
   if(T_total == T){times = T_tot}
-  return(list(times, Matstates, Vecmut))
+  return(list(times, Matstates))
 }
 ```
 
 ## Example of the SFS for the $\beta$-coalescent
 ```{r}
-n=10
-simulationSFS = replicate(10000, bcsim(n = n, alpha = 1.2, theta = 10)[3])
-simulationSFS = matrix(unlist(simulationSFS), ncol = n-1, byrow = T)
+
+n=100
+replicate = 1000
+simulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+for (i in 1:replicate){
+  simul = bcsim(n = n, alpha = 1.2)
+  simulationSFS[i,] = mutsim(simul)
+}
 
 meanSFS = apply(simulationSFS,2,mean)
+meanSFS = meanSFS/sum(meanSFS)
 q1SFS = apply(simulationSFS,2,quantile,0.05)
 q2SFS = apply(simulationSFS,2,quantile,0.95)
+q1SFS = q1SFS / sum(q1SFS)
+q2SFS = q2SFS / sum(q2SFS)
 print(meanSFS)
 
-plot(q2SFS, type = 'l', ylab = 'mean mutation number', xlab = 'lineage size', ylim = c(0, max(q2SFS)))
-lines(1:(n-1),meanSFS, col='red')
+plot(q2SFS, type = 'l', ylab = 'mean mutation number', xlab = 'lineage size', ylim = c(0,max(q2SFS)))
+lines(1:(n-1),meanSFS,col='red')
 lines(q1SFS)
+
+```
+
+
+## Just a thought about the singleton distribution
+
+```{r}
+singletondistr = function(simultree, xton = 1, theta = 10){
+  n = ncol(simultree[[2]])
+  individual = rep(0, n)
+  for (i in 1:length(simultree[[1]])){
+    nconcerned = simultree[[2]][i, xton]
+    individual[1:nconcerned] = individual[1:nconcerned]+simultree[[1]][i]
+  }
+  individual = individual/sum(individual)
+  #individual = rpois(n,individual*theta)
+  return(individual)
+}
+```
+
+```{r}
+n=100
+replicate = 1000
+
+neutral = matrix(0,ncol=n,nrow=replicate)
+MMC = matrix(0,ncol=n, nrow=replicate)
+
+for (i in 1:replicate){
+  sim_neutral = ncsim(n = n)
+  neutral[i,] = singletondistr(sim_neutral, 1, 10)
+  
+  sim_MMC = bcsim(n = n, alpha = 1)
+  MMC[i,] = singletondistr(sim_MMC, 1, 10)
+}
+
+neutral = apply(neutral,2,mean)
+neutral = neutral/sum(neutral)
+
+MMC = apply(MMC,2,mean)
+MMC = MMC/sum(MMC)
+
+plot(neutral, type = 'l')
+lines(MMC, col = 'red')
+```
+```{r}
+n=100
+
+neutral = matrix(0,ncol=n,nrow=replicate)
+MMC = matrix(0,ncol=n, nrow=replicate)
+
+for (i in 1:n){
+  sim_neutral = bcsim(n = n, alpha=1.2)
+  neutral[i,] = singletondistr(sim_neutral, i, 10)
+}
+
+require(plot3D)
+
+persp3D(z = neutral[1:5,1:5], theta = 120)
+```
+
+```{r}
+n=200
+replicate = 100
+
+neutral = matrix(0,ncol=n,nrow=replicate)
+MMC = matrix(0,ncol=n, nrow=replicate)
+
+for (i in 1:replicate){
+  sim_neutral = ncsim(n = n)
+  neutral[i,] = singletondistr(sim_neutral, 10)
+  
+  sim_MMC = bcsim(n = n, alpha = 1.5)
+  MMC[i,] = singletondistr(sim_MMC, 10)
+  print(i)
+}
+
+neutralx = neutral[,1]/apply(neutral,1,sum)
+neutraly = apply(neutral[,5:(n)],1,sum)/apply(neutral,1,sum)
+
+MMCx = MMC[,1]/apply(MMC,1,sum)
+MMCy = apply(MMC[,5:(n)],1,sum)/apply(MMC,1,sum)
+
+plot(neutralx, neutraly)
+points(MMCx, MMCy, col = 'red')
+
+```
+
+## Example of the SFS for the $\beta$-coalescent
+```{r}
+
+n=100
+replicate = 1000
+nsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+bsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+
+for (i in 1:replicate){
+  simul = ncsim(n = n)
+  nsimulationSFS[i,] = mutsim(simul)
+}
+for (i in 1:replicate){
+  simul = bcsim(n = n, alpha = 1.2)
+  bsimulationSFS[i,] = mutsim(simul)
+}
+
+nmeanSFS = apply(nsimulationSFS,2,mean)
+nmeanSFS = nmeanSFS/sum(nmeanSFS)
+
+bmeanSFS = apply(bsimulationSFS,2,mean)
+bmeanSFS = bmeanSFS/sum(bmeanSFS)
+
+
+plot(bmeanSFS, type = 'l', ylab = 'mean mutation number', xlab = 'lineage size', col='red')
+lines(nmeanSFS)
+
+```
+
+
+
+## Example of the SFS for the $\beta$-coalescent
+```{r}
+
+n=200
+replicate = 1000
+nsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+bsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+
+for (i in 1:replicate){
+  simul = ncsim(n = n)
+  nsimulationSFS[i,] = mutsim(simul)
+}
+for (i in 1:replicate){
+  simul = bcsim(n = n, alpha = 1.2)
+  bsimulationSFS[i,] = mutsim(simul)
+}
+
+xn = nsimulationSFS[,1]/apply(nsimulationSFS,1,sum)
+yn = apply(nsimulationSFS[,100:(n-1)],1,sum)/apply(nsimulationSFS,1,sum)
+
+xb = bsimulationSFS[,1]/apply(bsimulationSFS,1,sum)
+yb = apply(bsimulationSFS[,100:(n-1)],1,sum)/apply(bsimulationSFS,1,sum)
+
+plot(xn,yn, xlim=c(0,1), ylim=c(0,1))
+points(xb,yb, col='red')
 ```
