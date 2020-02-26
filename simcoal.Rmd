@@ -373,7 +373,7 @@ lines(nmeanSFS)
 ## Example of the SFS for the $\beta$-coalescent
 ```{r}
 
-n=200
+n=100
 replicate = 1000
 nsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
 bsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
@@ -383,16 +383,58 @@ for (i in 1:replicate){
   nsimulationSFS[i,] = mutsim(simul)
 }
 for (i in 1:replicate){
-  simul = bcsim(n = n, alpha = 1.2)
+  simul = bcsim(n = n, alpha = 1.6)
   bsimulationSFS[i,] = mutsim(simul)
 }
 
 xn = nsimulationSFS[,1]/apply(nsimulationSFS,1,sum)
-yn = apply(nsimulationSFS[,100:(n-1)],1,sum)/apply(nsimulationSFS,1,sum)
+#yn = apply(nsimulationSFS[,100:(n-1)],1,sum)/apply(nsimulationSFS,1,sum)
+yn = apply(nsimulationSFS,1,sum)
 
 xb = bsimulationSFS[,1]/apply(bsimulationSFS,1,sum)
-yb = apply(bsimulationSFS[,100:(n-1)],1,sum)/apply(bsimulationSFS,1,sum)
+#yb = apply(bsimulationSFS[,100:(n-1)],1,sum)/apply(bsimulationSFS,1,sum)
+yb = apply(bsimulationSFS,1,sum)
 
-plot(xn,yn, xlim=c(0,1), ylim=c(0,1))
+plot(xn,yn, xlim=c(0,1),ylim=c(0,200))
 points(xb,yb, col='red')
+
+hist(xn, breaks = 30)
+points(x = seq(0,0.6,length.out = 100),dgamma(seq(0,10,length.out = 100), 3.5, 1)*350)
+
+
+```
+
+```{r}
+train = matrix(c(xn,xb,yn,yb), ncol=2)
+#do the chunk above again
+test = matrix(c(xn,xb,yn,yb), ncol=2)
+class = c(rep('n',length(xn)),rep('b',length(xb)))
+
+a = knn(train, test, class, 1, prob = T)
+b = length(which(a[1:1000]=='n'))
+```
+
+```{r}
+train_qda = matrix(c(xn,xb,yn,yb), ncol=2)
+class = c(rep('n',length(xn)),rep('b',length(xb)))
+#do the chunk above again
+q = qda(train_qda, class)
+
+test_qda = matrix(c(xn,xb,yn,yb), ncol=2)
+z = predict(q, test_qda)
+b = length(which(z$class[1:1000]=='n'))
+```
+
+```{r}
+require(ggplot2)
+
+contour_data <- expand.grid(X1 = seq(-8, 8, length = 300),
+                            X2 = seq(-8, 8, length = 300))
+
+qda_predict <- data.frame(contour_data,
+                          y = as.numeric(predict(q, contour_data)$class))
+
+p <- ggplot(data.frame(train), aes(x = xn, y = yn)) + geom_point()
+p + stat_contour(aes(x = xn, y = yn), data = qda_predict)
+  + ggtitle("QDA Decision Boundaries")
 ```
