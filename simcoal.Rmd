@@ -256,7 +256,24 @@ lines(q1SFS)
 ```
 
 
-## Just a thought about the singleton distribution
+## The singleton distribution (more generally the xton distribution)
+
+The singleton distribution is given a sample of size n, the decreasing ordered number (or proportion) of singleton weared by each individual.
+This statistics will be driven by the states and times to coalescent. Indeed the easiest way to calculate the singleton distribution is to count the number of singleton lineages (the ones which have not coalesce yet, given by the first column of the state matrix) and considering each time before a coalescent event, and to sum all the time before a lineage coalesce. 
+E.g. if the number of singleton lineage before each coalescent event is (4,2,1), and the time before each coalescent event is (1,2,3), the theoretical distribution of singleton will be proportional to (6,3,1,1). Then we multiply this vector by the population mutation rate. Finally we can sample in a poisson distribution given this vector of rate.
+
+### Inputs
+
+simultree: is a list containing the states matrix and the vector of times to coalescent, no default.
+
+xton: a integral (or vector of integral) which contains the which type of xton to look at (i.e. singleton = 1, doubleton = 2, ...), the default is singleton.
+
+theta: the value of population mutation rate, the default is 10.
+
+### Output
+
+a vector with the xton distribution
+
 
 ```{r}
 singletondistr = function(simultree, xton = 1, theta = 10){
@@ -272,6 +289,7 @@ singletondistr = function(simultree, xton = 1, theta = 10){
 }
 ```
 
+Example of the singleton distribution 
 ```{r}
 n=100
 replicate = 1000
@@ -372,10 +390,8 @@ lines(nmeanSFS)
 
 ## Example of the SFS for the $\beta$-coalescent
 ```{r}
-
-n=100
-replicate = 1000
-nsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
+nvbclass = function(alpha, n=100, replicate=1000){
+  nsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
 bsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
 
 for (i in 1:replicate){
@@ -383,7 +399,7 @@ for (i in 1:replicate){
   nsimulationSFS[i,] = mutsim(simul)
 }
 for (i in 1:replicate){
-  simul = bcsim(n = n, alpha = 1.6)
+  simul = bcsim(n = n, alpha = alpha)
   bsimulationSFS[i,] = mutsim(simul)
 }
 
@@ -398,31 +414,11 @@ yb = apply(bsimulationSFS,1,sum)
 plot(xn,yn, xlim=c(0,1),ylim=c(0,200))
 points(xb,yb, col='red')
 
-hist(xn, breaks = 30)
-points(x = seq(0,0.6,length.out = 100),dgamma(seq(0,10,length.out = 100), 3.5, 1)*350)
+#hist(xn, breaks = 30)
+#points(x = seq(0,0.6,length.out = 100),dgamma(seq(0,10,length.out = 100), 3.5, 1)*350)
 
-
-```
-
-```{r}
-train = matrix(c(xn,xb,yn,yb), ncol=2)
-#do the chunk above again
-test = matrix(c(xn,xb,yn,yb), ncol=2)
-class = c(rep('n',length(xn)),rep('b',length(xb)))
-
-a = knn(train, test, class, 1, prob = T)
-b = length(which(a[1:1000]=='n'))
-```
-
-```{r}
-train_qda = matrix(c(xn,xb,yn,yb), ncol=2)
-class = c(rep('n',length(xn)),rep('b',length(xb)))
-#do the chunk above again
-q = qda(train_qda, class)
-
-test_qda = matrix(c(xn,xb,yn,yb), ncol=2)
-z = predict(q, test_qda)
-b = length(which(z$class[1:1000]=='n'))
+return(c(xn,yn,xb,yb))
+}
 ```
 
 ```{r}
