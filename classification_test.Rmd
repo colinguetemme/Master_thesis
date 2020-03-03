@@ -1,0 +1,358 @@
+---
+title: "Classification"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Aim of this code
+
+Determine what are the bet summaries of the SFS (maybe the singleton distribution) to classify data in order to associate them with the right model.
+
+For instance only the n and the beta will be tested, and we will use knn and qda to obtain classification model.
+
+Also in the n and beta the parameters n and alpha will take a range of value to determine if the selected summaries gives good results for any parameters for those 2 models.
+
+The following would be to extend this to other models like population growth model, or selection, ...
+
+# Setup
+download of the package and other scripts
+```{r}
+source('simcoal.R')
+require(class)
+require(MASS)
+require(ggplot2)
+```
+
+# The nvbclass type function
+
+The nvbclass function will simulate and return given summaries of the SFS and singleton distribution, in order to classify the two model later.
+
+Is uses the 'summaries' class function, there are different type of summaries function all given with a number to define wich summaries to use. 
+
+##Inputs
+
+alpha, the value of the parameter alpha for the beta coalescent
+
+FUN, the type of 'summaries' function used.
+
+n the sample size
+
+replicate the number of time to simulate the model in order to have a 'theoretical' results.
+
+## Outputs
+
+The summary statistics considered, the order of the summaries are, first summary for n, first summary for b, then second summary for n then for b, etc ...
+
+```{r}
+nvbclass = function(alpha, FUN = summaries1, n=100, replicate=1000){
+  
+  # initialisation of the matrix to stock he data
+  nSFS = matrix(0,ncol=n-1, nrow=replicate)
+  bSFS = matrix(0,ncol=n-1, nrow=replicate)
+  
+  nSD = matrix(0,ncol=n, nrow=replicate)
+  bSD = matrix(0,ncol=n, nrow=replicate)
+  
+  # Simulation of the number of the SFS and singletond distribution for n
+  for (i in 1:replicate){
+    simul = ncsim(n = n)
+    nSFS[i,] = mutsim(simul)
+    nSD[i,] = singletondistr(simul)
+  }
+  
+  # Same for Beta
+  for (i in 1:replicate){
+    simul = bcsim(n = n, alpha = alpha)
+    bSFS[i,] = mutsim(simul)
+    bSD[i,] = singletondistr(simul)
+  }
+  
+  # calculation of the summaries 
+  ## [ THIS PART CHANGES FROM ONE nbvclass FUNCTION TO THE OTHER ] ##
+  results = FUN(nSFS, bSFS, nSD, bSD)
+  
+  return(results)
+}
+```
+
+```{r}
+summaries1 = function(nSFS, bSFS, nSD, bSD){
+  xn = nSFS[,1]/(apply(nSFS,1,sum)+0.00001)
+  yn = apply(nSFS,1,sum)
+  
+  xb = bSFS[,1]/(apply(bSFS,1,sum)+0.00001)
+  yb = apply(bSFS,1,sum)
+  return(c(xn,xb,yn,yb))
+}
+```
+
+# The classification function
+
+This function will be used to creates the qda and knn models given a train and test dataset, for a specific nvbclass function.
+
+```{r}
+
+classification = function(alpha, n, FUN, replicate = 1000){
+  
+  train = nvbclass(alpha = alpha, FUN = FUN, n=n, replicate = replicate)
+  test = nvbclass(alpha = alpha, FUN = FUN, n=n, replicate = replicate)
+
+  train = matrix(train, ncol=2)
+  test = matrix(test, ncol=2)
+  class = factor(c(rep('n',replicate),rep('b',replicate)))
+
+  a = knn(train = train, test = test, cl = class, k = 1)
+  predknn = (length(which(a[1:replicate]=='n'))+length(which(a[replicate:(2*replicate)]=='b')))*100/(2*replicate)
+
+
+  plknn = cbind(data.frame(test), a)
+
+  q = qda(train, class)
+  z = predict(q, test)
+
+  plqda = cbind(data.frame(test), z$class)
+
+  predqda = (length(which(z$class[1:replicate]=='n'))+length(which(z$class[replicate:(2*replicate)]=='b')))*100/(2*replicate)
+  
+  q = lda(train, class)
+  z = predict(q, test)
+  
+  pllda = cbind(data.frame(test), z$class)
+  predlda = (length(which(z$class[1:replicate]=='n'))+length(which(z$class[replicate:(2*replicate)]=='b')))*100/(2*replicate)
+  
+  return(list(predknn,predqda,predlda,plknn,plqda,pllda))
+}
+
+```
+
+
+This chunck, using the above function (classification), will creates a dataframe with the accuracy for each set of parameter tested for the qda and knn models
+```{r}
+n=50
+step = 5
+vecalpha = seq(1,1.9,length.out = step)
+vecn = seq(10,50,length.out = step)
+results = data.frame(accuracy = rep(0, times = step*step*3),
+                     cl = c(rep('knn',step*step),rep('qda',step*step),rep('lda',step*step)),
+                     alpha = rep(vecalpha,3*step),
+                     n = rep(rep(vecn,each = step),3))
+
+for (n in 1:step){
+  for (i in 1:step){
+  giveclass=classification(alpha = vecalpha[i], n = round(vecn[n]),
+                           FUN = summaries1, replicate = 1000)
+
+  results$accuracy[i+(n-1)*step] = giveclass[[1]]
+  results$accuracy[i+(step*step)+(n-1)*step] = giveclass[[2]]
+  results$accuracy[i+(step*step)*2+(n-1)*step] = giveclass[[3]]
+  
+  print(n*step+i-step)
+}
+}
+
+print(mean(results$accuracy[which(results$cl=='knn')]))
+print(mean(results$accuracy[which(results$cl=='lda')]))
+print(mean(results$accuracy[which(results$cl=='qda')]))
+
+ggplot(data = results,aes(x = alpha, y = accuracy)) + geom_point(aes(shape=cl, col = cl))
+```
+
+We can see from this plot that the qda is always better than the knn.
+
+Also as n increase the accuracy greatly increase, and that shows the importance of a big sample size to classify the data in the right model, especially if we suppose a close to 2 (but different) alpha.
+
+
+Because the knn did nt work so well we can remove it from the classification function
+
+```{r}
+classification = function(alpha, n, FUN, replicate = 1000){
+  
+  train = nvbclass(alpha = alpha, FUN = FUN,
+                   n = n, replicate = replicate)
+  test = nvbclass(alpha = alpha, FUN = FUN,
+                  n = n, replicate = replicate)
+  
+  nbcol = round(length(train)/(2*replicate))
+  train = matrix(train, ncol=nbcol)
+  test = matrix(test, ncol=nbcol)
+  class = factor(c(rep('n',replicate),rep('b',replicate)))
+
+  q = qda(train, class)
+  z = predict(q, test)
+
+  plqda = cbind(data.frame(test), z$class)
+
+  predqda = (length(which(z$class[1:replicate]=='n'))+length(which(z$class[replicate:(2*replicate)]=='b')))*100/(2*replicate)
+
+  return(list(predqda,plqda))
+}
+```
+
+```{r}
+n=50
+step = 5
+vecalpha = seq(1,1.9,length.out = step)
+vecn = seq(10,100,length.out = step)
+results = data.frame(accuracy = rep(0, times = step*step),
+                     cl = rep('qda',step*step),
+                     alpha = rep(vecalpha,step),
+                     n = rep(vecn,each = step))
+
+for (n in 1:step){
+  for (i in 1:step){
+    giveclass = classification(alpha = vecalpha[i], FUN = summaries1,
+                               n = round(vecn[n]), replicate = 100)
+    #print(ggplot(data=giveclass[[2]], aes(x = a, y = b)) + geom_point(aes(colour=c)))
+ 
+  results$accuracy[i+(n-1)*step] = giveclass[[1]]
+  print(n*step+i-step)
+}
+}
+
+ggplot(data = results,aes(x = alpha, y = accuracy)) +
+  geom_line(aes(col = as.character(n)))
+
+print(mean(results$accuracy))
+```
+
+Know the goal will be to try to reach better summary to classify each model (for now only between the beta and the n coal)
+
+# Tests of other summary to increase the accuracy 
+
+Those summaries were quite logical because they take advantage of a big part of the information in the SFS regrouping.
+
+But there is still some informations to extract from the SFS, but also the singleton distribution.
+
+First we will try to add the proportion of the biggest singleton ind.
+
+```{r}
+summaries2 = function(nSFS, bSFS, nSD, bSD){
+
+  xn = nSFS[,1]/(apply(nSFS,1,sum)+0.00001)
+  yn = apply(nSFS,1,sum)
+  zn = nSD[,1]/(apply(nSD,1,sum)+0.00001)
+  
+  xb = bSFS[,1]/(apply(bSFS,1,sum)+0.00001)
+  yb = apply(bSFS,1,sum)
+  zb = bSD[,1]/(apply(bSD,1,sum)+0.00001)
+  
+  return(c(xn,xb,yn,yb,zn,zb))
+}
+```
+
+```{r}
+n=50
+step = 5
+vecalpha = seq(1,1.9,length.out = step)
+vecn = seq(10,100,length.out = step)
+results = data.frame(accuracy = rep(0, times = step*step),
+                     cl = rep('qda',step*step),
+                     alpha = rep(vecalpha,step),
+                     n = rep(vecn,each = step))
+
+for (n in 1:step){
+  for (i in 1:step){
+    giveclass=classification(alpha = vecalpha[i], FUN = summaries2,
+                             n = round(vecn[n]), replicate = 100)
+    #print(ggplot(data=giveclass[[2]], aes(x = a, y = b)) + geom_point(aes(colour=c)))
+ 
+    results$accuracy[i+(n-1)*step] = giveclass[[1]]
+    print(n*step+i-step)
+  }
+}
+
+ggplot(data = results,aes(x = alpha, y = accuracy)) +
+  geom_line(aes(col = as.character(n)))
+
+print(mean(results$accuracy))
+
+```
+The accuracy increased but in really small proportion (should we do a model selection ??)
+
+Also one of the big problem is the value S. Indeed this value is higly dependant of the effective population size but the calculation of this value can change from one model to the other, for this reason it could be better either to have a correction or to use scaled value (but S cannot just be scaled by S). So maybe we can see if keeping the biggest singleton proportion and the proportion of singleton can be relevant.
+
+```{r}
+summaries3 = function(nSFS, bSFS, nSD, bSD){
+
+  xn = nSFS[,1]/(apply(nSFS,1,sum)+0.00001)
+  xb = bSFS[,1]/(apply(bSFS,1,sum)+0.00001)
+
+  return(c(xn,xb))
+}
+```
+
+```{r}
+n=50
+step = 5
+vecalpha = seq(1,1.9,length.out = step)
+vecn = seq(10,100,length.out = step)
+results = data.frame(accuracy = rep(0, times = step*step),
+                     cl = rep('qda',step*step),
+                     alpha = rep(vecalpha,step),
+                     n = rep(vecn,each = step))
+
+for (n in 1:step){
+  for (i in 1:step){
+    giveclass=classification(alpha = vecalpha[i], FUN = summaries3,
+                              n = round(vecn[n]), replicate = 1000)
+    #print(ggplot(data=giveclass[[2]], aes(x = a, y = b)) + geom_point(aes(colour=c)))
+ 
+  results$accuracy[i+(n-1)*step] = giveclass[[1]]
+  print(n*step+i-step)
+}
+}
+
+ggplot(data = results,aes(x = alpha, y = accuracy)) +
+  geom_line(aes(col = as.character(n)))
+
+print(mean(results$accuracy))
+
+```
+
+
+Using the tail of the SFS
+
+```{r}
+summaries4 = function(nSFS, bSFS, nSD, bSD){
+  
+  n=ncol(nSFS)-1
+  xn = nSFS[,1]/(apply(nSFS,1,sum)+0.00001)
+  xb = bSFS[,1]/(apply(bSFS,1,sum)+0.00001)
+  #yn = apply(nSFS[,round(n-n/10):n],1,sum)/(apply(nSFS,1,sum)+0.00001)
+  #yb = apply(bSFS[,round(n-n/10):n],1,sum)/(apply(bSFS,1,sum)+0.00001)
+  zn = nSD[,1]/(apply(nSD,1,sum)+0.00001)
+  zb = bSD[,1]/(apply(bSD,1,sum)+0.00001)
+  
+  return(c(xn,xb,zn,zb))
+}
+```
+
+```{r}
+
+step = 5
+vecalpha = seq(1,1.9,length.out = step)
+vecn = seq(10,100,length.out = step)
+results = data.frame(accuracy = rep(0, times = step*step),
+                     cl = rep('qda',step*step),
+                     alpha = rep(vecalpha,step),
+                     n = rep(vecn,each = step))
+
+for (n in 1:step){
+  for (i in 1:step){
+    giveclass=classification(alpha = vecalpha[i], FUN = summaries4,
+                              n = round(vecn[n]), replicate = 1000)
+    #print(ggplot(data=giveclass[[2]], aes(x = X1, y = X3)) + geom_point(aes(colour=giveclass[[2]][,4])))
+
+  results$accuracy[i+(n-1)*step] = giveclass[[1]]
+  print(n*step+i-step)
+}
+}
+
+ggplot(data = results,aes(x = alpha, y = accuracy)) +
+  geom_line(aes(col = as.character(n)))
+
+print(mean(results$accuracy))
+
+```

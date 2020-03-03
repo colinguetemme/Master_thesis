@@ -277,14 +277,17 @@ a vector with the xton distribution
 
 ```{r}
 singletondistr = function(simultree, xton = 1, theta = 10){
+  
   n = ncol(simultree[[2]])
   individual = rep(0, n)
   for (i in 1:length(simultree[[1]])){
     nconcerned = simultree[[2]][i, xton]
     individual[1:nconcerned] = individual[1:nconcerned]+simultree[[1]][i]
   }
-  individual = individual/sum(individual)
-  #individual = rpois(n,individual*theta)
+  
+  individual = rpois(n,individual*theta)
+  individual = individual/(sum(individual)+0.000001)
+  
   return(individual)
 }
 ```
@@ -384,53 +387,4 @@ bmeanSFS = bmeanSFS/sum(bmeanSFS)
 plot(bmeanSFS, type = 'l', ylab = 'mean mutation number', xlab = 'lineage size', col='red')
 lines(nmeanSFS)
 
-```
-
-
-
-## Example of the SFS for the $\beta$-coalescent
-```{r}
-nvbclass = function(alpha, n=100, replicate=1000){
-  nsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
-bsimulationSFS = matrix(0,ncol=n-1, nrow=replicate)
-
-for (i in 1:replicate){
-  simul = ncsim(n = n)
-  nsimulationSFS[i,] = mutsim(simul)
-}
-for (i in 1:replicate){
-  simul = bcsim(n = n, alpha = alpha)
-  bsimulationSFS[i,] = mutsim(simul)
-}
-
-xn = nsimulationSFS[,1]/apply(nsimulationSFS,1,sum)
-#yn = apply(nsimulationSFS[,100:(n-1)],1,sum)/apply(nsimulationSFS,1,sum)
-yn = apply(nsimulationSFS,1,sum)
-
-xb = bsimulationSFS[,1]/apply(bsimulationSFS,1,sum)
-#yb = apply(bsimulationSFS[,100:(n-1)],1,sum)/apply(bsimulationSFS,1,sum)
-yb = apply(bsimulationSFS,1,sum)
-
-plot(xn,yn, xlim=c(0,1),ylim=c(0,200))
-points(xb,yb, col='red')
-
-#hist(xn, breaks = 30)
-#points(x = seq(0,0.6,length.out = 100),dgamma(seq(0,10,length.out = 100), 3.5, 1)*350)
-
-return(c(xn,yn,xb,yb))
-}
-```
-
-```{r}
-require(ggplot2)
-
-contour_data <- expand.grid(X1 = seq(-8, 8, length = 300),
-                            X2 = seq(-8, 8, length = 300))
-
-qda_predict <- data.frame(contour_data,
-                          y = as.numeric(predict(q, contour_data)$class))
-
-p <- ggplot(data.frame(train), aes(x = xn, y = yn)) + geom_point()
-p + stat_contour(aes(x = xn, y = yn), data = qda_predict)
-  + ggtitle("QDA Decision Boundaries")
 ```

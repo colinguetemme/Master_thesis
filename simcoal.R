@@ -148,3 +148,18 @@ nvbclass = function(alpha, n=100, replicate=1000){
   #points(x = seq(0,0.6,length.out = 100),dgamma(seq(0,10,length.out = 100), 3.5, 1)*350)
   return(c(xn,xb,yn,yb))
 }
+
+singletondistr = function(simultree, xton = 1, theta = 10){
+  
+  n = ncol(simultree[[2]])
+  individual = rep(0, n)
+  for (i in 1:length(simultree[[1]])){
+    nconcerned = simultree[[2]][i, xton]
+    individual[1:nconcerned] = individual[1:nconcerned]+simultree[[1]][i]
+  }
+  
+  individual = rpois(n,individual*theta)
+  individual = individual/(sum(individual)+0.000001)
+  
+  return(individual)
+}
