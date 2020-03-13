@@ -179,7 +179,7 @@ classification = function(alpha, n, FUN, replicate = 1000){
   test = matrix(test, ncol=nbcol)
   class = factor(c(rep('n',replicate),rep('b',replicate)))
 
-  q = qda(train, class)
+  q = lda(train, class)
   z = predict(q, test)
 
   plqda = cbind(data.frame(test), z$class)
