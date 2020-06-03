@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 # Aim of this code
 
-Determine what are the bet summaries of the SFS (maybe the singleton distribution) to classify data in order to associate them with the right model.
+Determine what are the best summaries of the SFS (maybe the singleton distribution) to classify data in order to associate them with the right model.
 
 For instance only the n and the beta will be tested, and we will use knn and qda to obtain classification model.
 
@@ -20,6 +20,7 @@ The following would be to extend this to other models like population growth mod
 download of the package and other scripts
 ```{r}
 source('simcoal.R')
+require(phasty)
 require(class)
 require(MASS)
 require(ggplot2)
@@ -77,6 +78,7 @@ nvbclass = function(alpha, FUN = summaries1, n=100, replicate=1000){
 }
 ```
 
+
 ```{r}
 summaries1 = function(nSFS, bSFS, nSD, bSD){
   xn = nSFS[,1]/(apply(nSFS,1,sum)+0.00001)
@@ -130,7 +132,6 @@ classification = function(alpha, n, FUN, replicate = 1000){
 
 This chunck, using the above function (classification), will creates a dataframe with the accuracy for each set of parameter tested for the qda and knn models
 ```{r}
-n=50
 step = 5
 vecalpha = seq(1,1.9,length.out = step)
 vecn = seq(10,50,length.out = step)
@@ -142,7 +143,7 @@ results = data.frame(accuracy = rep(0, times = step*step*3),
 for (n in 1:step){
   for (i in 1:step){
   giveclass=classification(alpha = vecalpha[i], n = round(vecn[n]),
-                           FUN = summaries1, replicate = 1000)
+                           FUN = summaries1, replicate = 100)
 
   results$accuracy[i+(n-1)*step] = giveclass[[1]]
   results$accuracy[i+(step*step)+(n-1)*step] = giveclass[[2]]
@@ -167,7 +168,7 @@ Also as n increase the accuracy greatly increase, and that shows the importance 
 Because the knn did nt work so well we can remove it from the classification function
 
 ```{r}
-classification = function(alpha, n, FUN, replicate = 1000){
+classification = function(alpha, n, FUN, replicate = 100){
   
   train = nvbclass(alpha = alpha, FUN = FUN,
                    n = n, replicate = replicate)
@@ -296,7 +297,7 @@ results = data.frame(accuracy = rep(0, times = step*step),
 for (n in 1:step){
   for (i in 1:step){
     giveclass=classification(alpha = vecalpha[i], FUN = summaries3,
-                              n = round(vecn[n]), replicate = 1000)
+                              n = round(vecn[n]), replicate = 100)
     #print(ggplot(data=giveclass[[2]], aes(x = a, y = b)) + geom_point(aes(colour=c)))
  
   results$accuracy[i+(n-1)*step] = giveclass[[1]]
@@ -320,8 +321,8 @@ summaries4 = function(nSFS, bSFS, nSD, bSD){
   n=ncol(nSFS)-1
   xn = nSFS[,1]/(apply(nSFS,1,sum)+0.00001)
   xb = bSFS[,1]/(apply(bSFS,1,sum)+0.00001)
-  #yn = apply(nSFS[,round(n-n/10):n],1,sum)/(apply(nSFS,1,sum)+0.00001)
-  #yb = apply(bSFS[,round(n-n/10):n],1,sum)/(apply(bSFS,1,sum)+0.00001)
+  yn = apply(nSFS[,round(n-n/10):n],1,sum)/(apply(nSFS,1,sum)+0.00001)
+  yb = apply(bSFS[,round(n-n/10):n],1,sum)/(apply(bSFS,1,sum)+0.00001)
   zn = nSD[,1]/(apply(nSD,1,sum)+0.00001)
   zb = bSD[,1]/(apply(bSD,1,sum)+0.00001)
   
@@ -342,7 +343,7 @@ results = data.frame(accuracy = rep(0, times = step*step),
 for (n in 1:step){
   for (i in 1:step){
     giveclass=classification(alpha = vecalpha[i], FUN = summaries4,
-                              n = round(vecn[n]), replicate = 1000)
+                              n = round(vecn[n]), replicate = 100)
     #print(ggplot(data=giveclass[[2]], aes(x = X1, y = X3)) + geom_point(aes(colour=giveclass[[2]][,4])))
 
   results$accuracy[i+(n-1)*step] = giveclass[[1]]
