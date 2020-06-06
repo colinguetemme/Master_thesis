@@ -4,6 +4,12 @@
 ### Author: Colin Guétemme   --   Supervisor: Asger Hobolth
 ### June 2020   --   Rennes 1 University   --   Aarhus University
 
+```{r, echo=FALSE}
+htmltools::img(src = knitr::image_uri(file.path(R.home("doc"), "html", "logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px;')
+```
+
 This git page gather all the complementary codes from my master thesis which are separate from the [```phasty``` R package](https://github.com/rivasiker/phasty).
 
 
