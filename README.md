@@ -1,7 +1,7 @@
-# Master thesis complementary codes ! <p align="center"> <img src="https://github.com/colinguetemme/Master_thesis/blob/master/logo.png" width="64" height="64" /> </p>
+# Master thesis complementary codes !      <p align="center"> <img src="https://github.com/colinguetemme/Master_thesis/blob/master/logo.png" width="64" height="64" /> </p>
 
 
-## Title: ```Phasty```: an R package to handle phase-type distributions and its use in coalescent theory.
+## Title: ```Phasty```: an R package to handle phase-type distributions and its use in coalescent theory. 
 ### Author: Colin Guétemme   --   Supervisor: Asger Hobolth
 ### June 2020   --   Rennes 1 University   --   Aarhus University
 
