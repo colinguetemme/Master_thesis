@@ -18,7 +18,7 @@ You can reach the markdown for the simulation directly at:
 https://rpubs.com/cguetemme/simcoal
 
 You can reach directly the markdown for the classification at:
-
+https://rpubs.com/cguetemme/classification
 
 &nbsp;
 &nbsp;
