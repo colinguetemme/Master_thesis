@@ -58,10 +58,10 @@ rew_vec <- c(0, 2, 1)
 rph <- reward_phase_type(ph, rew_vec)
 print(rph)
 
-rew_mat <- matrix(c(0.2, 0.8, 0, 0,
-                    0, 0.5, 0, 0.5,
-                    0, 0, 1, 0), ncol = 4,
-                  byrow = T)
+rew_mat <- matrix(c(0.25, 0.75, 0, 0,
+                    0, 0.5, 0.5, 0,
+                    0, 0.25, 0, 0.75), ncol = 4,
+                  byrow = TRUE)
 rdph <- reward_phase_type(dph, rew_mat)
 print(rdph)
 
@@ -195,12 +195,17 @@ block_counting_process(4)
 
 # -- Section 4.4.1 --
 
+discretize <- function(subint_mat, theta){
+    S_mat <-solve(diag(ncol(subint_mat)) - 2/theta * subint_mat)
+    return(S_mat)
+}
+
 S_sites <- function(n, theta){
     T_total <- T_total_n(n)
-    S_mat <- solve(diag(n-1) - 2/theta *
-                       T_total$subint_mat)
+    S_mat <- discretize(T_total$subint_mat, theta)
     return(phase_type(S_mat))
 }
+
 
 S_4 <- S_sites(4, 2)
 print(S_4)
@@ -209,10 +214,33 @@ var(S_4)
 
 # -- Section 4.4.2 --
 
+i_ton <- function(n, i_ton, theta = 10){
+    bcp <- block_counting_process(n)
+    Ti <- phase_type(discretize(bcp$rate_mat, theta))
+    PHi_ton <- reward_phase_type(Ti, bcp$state_mat[, i_ton])
+    return(PHi_ton)
+}
+
+SFS <- function(n, theta = 10){
+    bcp <- block_counting_process(n)
+    Ti <- discretize(bcp$rate_mat, theta)
+    return(phase_type(Ti, reward_mat = bcp$state_mat))
+}
+
+SD <- function(n, theta = 10){
+    bcp <- block_counting_process(n)
+    Ti <- discretize(bcp$rate_mat, theta)
+    reward_mat <- 0 * bcp$rate_mat
+    for (i in 1:nrow(bcp$state_mat)){
+        reward_mat[i, 1:bcp$state_mat[i, 1]] <- 1 
+    }
+    return(phase_type(Ti, reward_mat = reward_mat))
+}
+
 bcp_4 <- block_counting_process(4)
-S_sites(bcp_4)
-SFS_4 <- phase_type(bcp_4$rate_mat,
-                    reward_mat = bcp_4$space_mat)
+S_sites(4, 10)
+
+SFS_4 <- SFS(4)
 
 mean(SFS_4)
 var(SFS_4)
@@ -222,7 +250,3 @@ S_sites(n = 10, theta = 2)
 SFS_10 <- phase_type(bcp_10$rate_mat,
                     reward_mat = bcp_10$space_mat)
 plot(mean(SFS_10))
-
-tic()
-bcp <- block_counting_process(35)
-toc()

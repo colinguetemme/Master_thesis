@@ -13,8 +13,8 @@ ui <- dashboardPage(
     dashboardHeader(title = 'Phasty app'),
     dashboardSidebar(
         sidebarMenu(
-            menuItem('Plot univariate', tabName = 'univ'),
-            menuItem('Reward', tabName = 'reward')
+            menuItem('Plot univariate', tabName = 'univ')
+            #menuItem('Reward', tabName = 'reward')
         )
     ),
     dashboardBody(
@@ -50,20 +50,6 @@ ui <- dashboardPage(
                         )
                         
                     )
-            ),
-            tabItem(tabName = 'reward',
-                    fluidRow(column(10, h2('subintensity matrix'), offset = 1)),
-                    fluidRow(
-                        column(10, matrixInput('subint_mat', value <- sub), offset = 1)
-                    ),
-                    fluidRow(column(10, h2('initial probabilities'), offset = 1)),
-                    fluidRow(
-                        column(10, matrixInput('init_probs', value <- init), offset = 1)
-                    ),
-                    fluidRow(column(10, h2('initial probabilities'), offset = 1)),
-                    fluidRow(
-                        column(10, matrixInput('reward', value <- init), offset = 1)
-                    )
             )
         )
         
@@ -74,6 +60,7 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
     
     data <- reactive(phase_type(input$subint_mat, input$init_probs, 6))
+    
     
     max_x <- reactive(qphtype(0.95, data()))
     
@@ -96,22 +83,48 @@ server <- function(input, output, session) {
     })
     
     output$plot1 <- renderPlot({
+        if(sum(x()) == sum(round(x()))){
+            plotter  <- geom_bar(stat="identity", fill = 'orange', alpha = 0.6)
+        } else {
+            plotter <- geom_area(fill = 'orange', alpha = 0.6)
+        }
+               
         ploty <- cbind(as.matrix(x()), as.matrix(dphtype(x(), data())))
         ploty <-  data.frame(ploty)
-        ggplot(ploty) + geom_area(aes(x = X1, y = X2), fill = 'red', alpha = 0.6)
+        ggplot(ploty, aes(x = X1, y = X2)) + plotter +
+            theme_bw() + geom_point(size = 1.2) + xlab('Time to absorbging state') + 
+            ylab('Density')
     })
     output$plot2 <- renderPlot({
+        if(sum(x()) == sum(round(x()))){
+            plotter  <- geom_bar(stat="identity", fill = 'orange', alpha = 0.6)
+        } else {
+            plotter <- geom_area(fill = 'orange', alpha = 0.6)
+        }
+        
         ploty <- cbind(as.matrix(x()), as.matrix(pphtype(x(), data())))
         ploty <-  data.frame(ploty)
-        ggplot(ploty) + geom_area(aes(x = X1, y = X2), fill = 'red', alpha = 0.6)
+        ggplot(ploty, aes(x = X1, y = X2)) + plotter +
+            theme_bw() + geom_point(size = 1.2) + xlab('Time to absorbging state') + 
+            ylab('Density')
     })
     output$plot3 <- renderPlot({
+        if(sum(x()) == sum(round(x()))){
+            plotter  <- geom_bar(stat="identity", fill = 'orange', alpha = 0.6)
+        } else {
+            plotter <- geom_area(fill = 'orange', alpha = 0.6)
+        }
+        
         ploty <- cbind(as.matrix(x()), as.matrix(qphtype(x(), data())))
         ploty <-  data.frame(ploty)
-        ggplot(ploty) + geom_area(aes(x = X1, y = X2), fill = 'red', alpha = 0.6)
+        ggplot(ploty, aes(x = X1, y = X2)) + plotter +
+            theme_bw() + geom_point(size = 1.2) + xlab('Time to absorbging state') + 
+            ylab('Density')
     })
     
+
     output$test <- renderPrint(summary(data()))
+    
     
     observeEvent(input$add, {
         updateMatrixInput(session, "subint_mat",
@@ -131,6 +144,15 @@ server <- function(input, output, session) {
             as.numeric(input$subint_mat), ncol = ncol(input$subint_mat)))
         updateMatrixInput(session, 'init_probs',
                           value = t(matrix(c(1, rep(0, ncol(input$init_probs)-1)))))
+    })
+    observeEvent(input$apply, {
+        reac_reward  <- reactive(reward_phase_type(phase_type(input$subint_mat, input$init_probs, 6), t(as.numeric(input$reward))))
+        print(reac_reward())
+        updateMatrixInput(session, "subint_mat", value = reac_reward()$subint_mat)
+        updateMatrixInput(session, 'init_probs', value = reac_reward()$init_probs)
+    })
+    observeEvent(input$init_probs,{
+        updateMatrixInput(session, 'reward', value = t(rep(1, length(input$init_probs))))
     })
 }
 

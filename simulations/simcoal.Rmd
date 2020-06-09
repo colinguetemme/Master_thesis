@@ -1,12 +1,15 @@
 ---
 title: "simcoal"
+subtitle: 'Simulation of coalescent models'
+author: "Colin Guétemme"
 output:
-  html_document:
+  prettydoc::html_pretty:
     toc: true
-    theme: united
+    theme: 'cayman'
 ---
 
 ```{r setup, include=FALSE}
+
 knitr::opts_chunk$set(
   echo = TRUE,
   message = FALSE,
@@ -39,15 +42,12 @@ ncsim <- function(n, theta = 10, model = 'n', T_total = FALSE){
   if (n <= 0 || length(n) != 1 || round(n) != n){
     stop('n should be a positive integer')
   }
-  
   if (theta < 0 || length(theta) != 1){
     stop('theta should be a positive numeric')
   }
-  
   if (!is.logical(T_total)){
     stop('T_total should be a logical value')
   }
-  
   # Initialisation
   times <- NULL
   T_tot <- NULL
@@ -87,19 +87,14 @@ ncsim <- function(n, theta = 10, model = 'n', T_total = FALSE){
       Vecnext[inext[i]] <- Vecnext[inext[i]] - 1
     }
     Vecnext[sum(inext)] <- Vecnext[sum(inext)] + 1
-    
     count <- count + 1
     Matstates <- rbind(Matstates, Vecnext, deparse.level = 0)
     k <- k - 1
   }
   # give a vector of mutation rate (corresponding to the SFS)
-  
   mutrate <- matrix(times * (Matstates[-count, -n]) * (theta/2), ncol = n-1)
   mutrate <- apply(mutrate, 2, sum)
-  
-  
   Vecmut <- rpois(n = n-1, lambda = mutrate)
-  
   if(T_total == TRUE){
     times <- T_tot
     }
@@ -107,17 +102,6 @@ ncsim <- function(n, theta = 10, model = 'n', T_total = FALSE){
 }
 ```
 
-```{r}
-mutsim <- function(simtree, theta = 10){
-  n <- ncol(simtree) + 1
-  mutrate <- matrix(simtree[[1]] * (simtree[[2]][-nrow(simtree[[2]]), -ncol(simtree[[2]])])*(theta/2), ncol = ncol(simtree[[2]]) - 1)
-  mutrate <- apply(mutrate, 2, sum)
-
-
-  Vecmut <- rpois(n = n-1, lambda = mutrate)
-  return (Vecmut)
-}
-```
 ## Examples
 
 These are a few examples of how to use this function,
@@ -135,19 +119,22 @@ plot(example1[[1]])
 ```{r}
 # with T_Total
 
-example2 <- ncsim(n = 10, theta = 100, T_total = T)
-print(example2)
-plot(example2[[1]])
+example2 <- ncsim(n = 10, theta = 100, T_total = TRUE)
+print(example2[[1]])
+print(example2[[3]])
 ```
 
-Considering many simulations, we can observe the mean SFS of the n-coalescent model. In particular this simulation confirmms that the number of singletons, doubletons, ... follows the formula presented in ,
+Considering many simulations, we can observe the mean SFS of the n-coalescent model. In particular this simulation confirmms that the number of singletons, doubletons, ... follows the formula
 $$
-  \xi_i = \frac{\theta_i}{i}
+  \xi_i = \frac{\theta_i}{i}.
 $$
 
-In that case if we take $n=10$, $\theta=100$ and the number of simulation is 10000, we obtain the following plot
+considering $n=100$, $\theta=10$ for 1000 replicates, the mean, and CI95\% of the SFS can be reach using the following code:
+
+**NOTE: THE SIMILAR CODES WILL BE HIDDEN AND LINKED TO THIS ONE, if you need to see the codes, you can check the raw file.**
+
 ```{r}
-n <- 10
+n <- 100
 replicate <- 1000
 simulationSFS <- matrix(0, ncol = n-1, nrow = replicate)
 for (i in 1:replicate){
@@ -158,9 +145,9 @@ meanSFS <- apply(simulationSFS, 2, mean)
 q1SFS <- apply(simulationSFS, 2, quantile, 0.05)
 q2SFS <- apply(simulationSFS, 2, quantile, 0.95)
 
-plot(x = 1:(n-1), y = q2SFS, ylab = 'mean mutation number', xlab = 'lineage size', ylim = c(0, max(q2SFS)))
-points(1:(n-1), meanSFS, col = 'red')
-points(q1SFS)
+plot(x = 1:(n-1), y = q2SFS, ylab = 'mean mutation number', xlab = 'lineage size', ylim = c(0, max(q2SFS)), type = 'l')
+lines(1:(n-1), meanSFS, col = 'red')
+lines(q1SFS)
 ```
 
 # Variation of the function for other coalescent model
@@ -194,25 +181,19 @@ LambdaB <- function(m, k, alpha = 1.9999){
   return(lmk)
 }
 
-
 bcsim <- function(n, alpha = 1.9999, theta = 10, T_total = FALSE){
-  
   if (n <= 0 || length(n) != 1 || round(n) != n){
     stop('n should be a positive integer')
   }
-  
   if (theta < 0 || length(theta) != 1){
     stop('theta should be a positive numeric')
   }
-  
   if (!is.logical(T_total)){
     stop('T_total should be a logical value')
   }
-  
   if (alpha < 1 || alpha >= 2 || length(alpha) != 1){
     stop('alpha should be a positive numeric between [1, 2)')
   }
-  
   times <- NULL
   T_tot <- NULL
   k <- n
@@ -230,8 +211,6 @@ bcsim <- function(n, alpha = 1.9999, theta = 10, T_total = FALSE){
     lambda <- sum(Vecrate)
     times[count] <- 1 / lambda
     kmerger <- sample(1:n, 1, prob = Vecrate / lambda)
-    
-    
     if(T_total == TRUE){
       T_tot[count] <- times[count] * k
       } 
@@ -249,7 +228,6 @@ bcsim <- function(n, alpha = 1.9999, theta = 10, T_total = FALSE){
   
   mutrate <- matrix(times * (Matstates[-count, -n]) * (theta/2), ncol = n-1)
   mutrate <- apply(mutrate, 2, sum)
-  
   Vecmut <- rpois(n = n-1, lambda = mutrate)
   
   if(T_total == TRUE){
@@ -260,7 +238,10 @@ bcsim <- function(n, alpha = 1.9999, theta = 10, T_total = FALSE){
 ```
 
 ## Example of the SFS for the $\beta$-coalescent
-```{r}
+
+Here is the SFS distribution considering a beta coalescent model for 1000 simulations of a sample size $n=100$ and a mutation rate of $\theta = 10$
+
+```{r, echo = FALSE}
 
 n <- 100
 replicate <- 1000
@@ -282,32 +263,64 @@ lines(1:(n-1), q1SFS)
 
 ```
 
+## SFS $n$coalescent vs $\beta$-coalescent
 
-## The singleton distribution (more generally the xton distribution)
+Comparison of the mean SFS distribution for the n model beta model ($n = 100$, $\theta = 10$, replicate $= 1000$) 
 
-The singleton distribution is given a sample of size n, the decreasing ordered number (or proportion) of singleton weared by each individual.
+```{r, echo = FALSE}
+
+n <- 100
+replicate <- 1000
+nsimulationSFS <- matrix(0, ncol = n-1, nrow = replicate)
+bsimulationSFS <- matrix(0, ncol = n-1, nrow = replicate)
+
+for (i in 1:replicate){
+  nsimulationSFS[i,] <- ncsim(n = n)[[3]]
+}
+for (i in 1:replicate){
+  bsimulationSFS[i,] <- bcsim(n = n, alpha = 1.2)[[3]]
+}
+
+nmeanSFS <- apply(nsimulationSFS, 2, mean)
+nmeanSFS <- nmeanSFS / sum(nmeanSFS)
+
+bmeanSFS <- apply(bsimulationSFS, 2, mean)
+bmeanSFS <- bmeanSFS / sum(bmeanSFS)
+
+plot(bmeanSFS, type = 'l', ylab = 'mean mutation number', xlab = 'lineage size', col = 'red')
+lines(nmeanSFS)
+```
+
+With in red the $\beta$-coalescent model and in black the $n$-coalescent model.
+
+The difference will be mainly on the first few i_tons were the difference is pretty huge with three times more singleton for the $\beta$ coalescent model than for the $n$-coalescent model. 
+This can be explained by the fact that in the $\beta$-coalescent model, many lineages can coalesce in one event so there are less probability to get a particular lineage value (except for the singleton, because there are here at the beginning).
+
+## The singleton distribution (more generally the i_ton distribution)
+
+The singleton distribution given a sample of size n, is the decreasing ordered number (or proportion) of singleton weared by each individual.
 This statistics will be driven by the states and times to coalescent. Indeed the easiest way to calculate the singleton distribution is to count the number of singleton lineages (the ones which have not coalesce yet, given by the first column of the state matrix) and considering each time before a coalescent event, and to sum all the time before a lineage coalesce. 
-E.g. if the number of singleton lineage before each coalescent event is (4,2,1), and the time before each coalescent event is (1,2,3), the theoretical distribution of singleton will be proportional to (6,3,1,1). Then we multiply this vector by the population mutation rate. Finally we can sample in a poisson distribution given this vector of rate.
+E.g. if the number of singleton lineage before each coalescent event is (4, 2, 1), and the time before each coalescent event is (1, 2, 3), the theoretical distribution of singleton will be proportional to (6, 3, 1, 1). Then we multiply this vector by the population mutation rate. Finally we can sample in a poisson distribution given this vector of rate.
 
 ### Inputs
 
-simultree: is a list containing the states matrix and the vector of times to coalescent, no default.
+```simultree```: is a list containing the states matrix and the vector of times to coalescent, no default.
 
-xton: a integral (or vector of integral) which contains the which type of xton to look at (i.e. singleton = 1, doubleton = 2, ...), the default is singleton.
+```i_ton```: a integral (or vector of integral) which contains the which type of i_ton to look at (i.e. singleton = 1, doubleton = 2, ...), the default is singleton.
 
-theta: the value of population mutation rate, the default is 10.
+```theta```: the value of population mutation rate, the default is 10.
 
 ### Output
 
-a vector with the xton distribution
+a vector with the i_ton distribution
 
 ```{r}
-singletondistr <- function(simultree, xton = 1, theta = 10){
+singletondistr <- function(simultree, i_ton = 1, theta = 10){
   
   n <- ncol(simultree[[2]])
   individual <- rep(0, n)
   for (i in 1:length(simultree[[1]])){
-    nconcerned <- simultree[[2]][i, xton]
+    nconcerned <- simultree[[2]][i, i_ton]
     individual[1:nconcerned] <- individual[1:nconcerned] + simultree[[1]][i]
   }
   
@@ -343,6 +356,7 @@ MMC <- MMC / sum(MMC)
 plot(neutral, type = 'l')
 lines(MMC, col = 'red')
 ```
+
 ```{r}
 n <- 100
 
@@ -355,58 +369,5 @@ for (i in 1:n){
 }
 
 require(plot3D)
-
 persp3D(z = neutral[1:5, 1:5], theta = 120)
-```
-
-```{r}
-n <- 200
-replicate <- 100
-
-neutral <- matrix(0, ncol = n, nrow = replicate)
-MMC <- matrix(0, ncol = n, nrow = replicate)
-
-for (i in 1:replicate){
-  sim_neutral <- ncsim(n = n)
-  neutral[i, ] <- singletondistr(sim_neutral, 10)
-  
-  sim_MMC <- bcsim(n = n, alpha = 1.5)
-  MMC[i, ] <- singletondistr(sim_MMC, 10)
-}
-
-neutralx <- neutral[, 1] / apply(neutral, 1, sum)
-neutraly <- apply(neutral[, 5:(n)], 1, sum) / apply(neutral, 1, sum)
-
-MMCx <- MMC[, 1] / apply(MMC, 1, sum)
-MMCy <- apply(MMC[, 5:(n)], 1, sum) / apply(MMC, 1, sum)
-
-plot(neutralx, neutraly)
-points(MMCx, MMCy, col = 'red')
-
-```
-
-## Example of the SFS for the $\beta$-coalescent
-```{r}
-
-n <- 100
-replicate <- 1000
-nsimulationSFS <- matrix(0, ncol = n-1, nrow = replicate)
-bsimulationSFS <- matrix(0, ncol = n-1, nrow = replicate)
-
-for (i in 1:replicate){
-  nsimulationSFS[i,] <- ncsim(n = n)[[3]]
-}
-for (i in 1:replicate){
-  bsimulationSFS[i,] <- bcsim(n = n, alpha = 1.2)[[3]]
-}
-
-nmeanSFS <- apply(nsimulationSFS, 2, mean)
-nmeanSFS <- nmeanSFS / sum(nmeanSFS)
-
-bmeanSFS <- apply(bsimulationSFS, 2, mean)
-bmeanSFS <- bmeanSFS / sum(bmeanSFS)
-
-plot(bmeanSFS, type = 'l', ylab = 'mean mutation number', xlab = 'lineage size', col = 'red')
-lines(nmeanSFS)
-
 ```
